@@ -1,0 +1,233 @@
+<InicioScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 20
+        spacing: 15
+        BoxLayout:
+            size_hint_y: 0.15
+            Label:
+                text: 'PocketFora'
+                font_size: '28sp'
+                bold: True
+                color: 0.2, 0.6, 0.9, 1
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint_y: 0.25
+            spacing: 5
+            Label:
+                text: 'Gasto del Mes'
+                font_size: '14sp'
+                color: 0.5, 0.5, 0.5, 1
+            Label:
+                id: total_label
+                text: 'S/ 0.00'
+                font_size: '36sp'
+                bold: True
+                color: 0.9, 0.3, 0.3, 1
+            Label:
+                id: transacciones_label
+                text: '0 transacciones'
+                font_size: '14sp'
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint_y: 0.5
+            spacing: 15
+            Button:
+                text: '📷 Escanear QR'
+                font_size: '18sp'
+                size_hint_y: 0.3
+                background_normal: ''
+                background_color: 0.2, 0.6, 0.9, 1
+                on_release: root.ir_a_escaner()
+            Button:
+                text: '📋 Historial'
+                font_size: '18sp'
+                size_hint_y: 0.3
+                background_normal: ''
+                background_color: 0.3, 0.7, 0.4, 1
+                on_release: root.ir_a_historial()
+            Button:
+                text: '📊 Reportes'
+                font_size: '18sp'
+                size_hint_y: 0.3
+                background_normal: ''
+                background_color: 0.7, 0.5, 0.3, 1
+                on_release: root.ir_a_reporte()
+        Label:
+            text: 'v1.0.0'
+            font_size: '12sp'
+            color: 0.7, 0.7, 0.7, 1
+            size_hint_y: 0.1
+
+<EscanerScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 10
+        spacing: 10
+        Label:
+            text: 'Escáner QR'
+            font_size: '20sp'
+            bold: True
+            size_hint_y: 0.08
+        Image:
+            id: camera_image
+            size_hint_y: 0.7
+            allow_stretch: True
+            keep_ratio: True
+        Label:
+            id: status_label
+            text: 'Esperando QR...'
+            font_size: '16sp'
+            color: 0.5, 0.5, 0.5, 1
+            size_hint_y: 0.07
+        Button:
+            text: '🔙 Volver'
+            font_size: '16sp'
+            size_hint_y: 0.1
+            on_release: app.root.current = 'principal'
+
+<ConfirmarScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 15
+        spacing: 8
+        Label:
+            text: 'Confirmar Transacción'
+            font_size: '20sp'
+            bold: True
+            size_hint_y: 0.08
+        ScrollView:
+            size_hint_y: 0.7
+            BoxLayout:
+                orientation: 'vertical'
+                size_hint_y: None
+                height: self.minimum_height
+                spacing: 8
+                padding: 5
+                Label:
+                    text: 'Comercio:'
+                    bold: True
+                    size_hint_y: None
+                    height: 20
+                Label:
+                    text: root.comercio
+                    size_hint_y: None
+                    height: 25
+                Label:
+                    text: 'Fecha:'
+                    bold: True
+                    size_hint_y: None
+                    height: 20
+                Label:
+                    text: root.fecha
+                    size_hint_y: None
+                    height: 25
+                Label:
+                    text: 'Total:'
+                    bold: True
+                    size_hint_y: None
+                    height: 20
+                Label:
+                    text: root.total
+                    font_size: '22sp'
+                    color: 0.9, 0.3, 0.3, 1
+                    size_hint_y: None
+                    height: 35
+                Label:
+                    text: 'Tipo Doc.:'
+                    bold: True
+                    size_hint_y: None
+                    height: 20
+                Label:
+                    text: root.tipo_doc
+                    size_hint_y: None
+                    height: 25
+                Label:
+                    text: 'Serie:'
+                    bold: True
+                    size_hint_y: None
+                    height: 20
+                Label:
+                    text: root.serie
+                    size_hint_y: None
+                    height: 25
+                Label:
+                    text: 'RUC:'
+                    bold: True
+                    size_hint_y: None
+                    height: 20
+                Label:
+                    text: root.ruc
+                    size_hint_y: None
+                    height: 25
+                Label:
+                    text: 'Categoría:'
+                    bold: True
+                    size_hint_y: None
+                    height: 20
+                Spinner:
+                    id: categoria_spinner
+                    text: '📁 Otros'
+                    size_hint_y: None
+                    height: 40
+                Label:
+                    text: 'Detalle:'
+                    bold: True
+                    size_hint_y: None
+                    height: 20
+                Label:
+                    text: root.detalle
+                    text_size: self.width, None
+                    size_hint_y: None
+                    height: self.texture_size[1]
+        BoxLayout:
+            size_hint_y: 0.15
+            spacing: 10
+            Button:
+                text: '✅ Guardar'
+                font_size: '16sp'
+                background_color: 0.3, 0.7, 0.4, 1
+                on_release: root.guardar()
+            Button:
+                text: '🗑️ Descartar'
+                font_size: '16sp'
+                background_color: 0.8, 0.3, 0.3, 1
+                on_release: root.descartar()
+
+<HistorialScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 10
+        spacing: 8
+        Label:
+            text: 'Historial'
+            font_size: '20sp'
+            bold: True
+            size_hint_y: 0.08
+        ScrollView:
+            id: historial_scroll
+            size_hint_y: 0.8
+        Button:
+            text: '🔙 Volver'
+            font_size: '16sp'
+            size_hint_y: 0.1
+            on_release: app.root.current = 'principal'
+
+<ReporteScreen>:
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 10
+        spacing: 8
+        Label:
+            text: 'Reporte Mensual'
+            font_size: '20sp'
+            bold: True
+            size_hint_y: 0.08
+        ScrollView:
+            id: reporte_scroll
+            size_hint_y: 0.8
+        Button:
+            text: '🔙 Volver'
+            font_size: '16sp'
+            size_hint_y: 0.1
+            on_release: app.root.current = 'principal'

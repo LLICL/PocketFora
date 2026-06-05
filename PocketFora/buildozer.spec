@@ -1,0 +1,21 @@
+[app]
+title = PocketFora
+package.name = pocketfora
+package.domain = org.pocketfora
+source.dir = .
+source.include_exts = py,png,jpg,kv,atlas,ttf,txt
+version = 1.0.0
+requirements = python3,kivy==2.3.1,opencv-python==4.11.1.25,pyzbar==0.1.9,Pillow==11.2.1,numpy
+orientation = portrait
+osx.python_version = 3
+osx.kivy_version = 2.3.1
+fullscreen = 0
+android.api = 34
+android.minapi = 21
+android.ndk = 27
+android.sdk = 34
+android.gradle_dependencies = 'androidx.camera:camera-core:1.3.0','androidx.camera:camera-camera2:1.3.0'
+android.permissions = CAMERA
+android.arch = arm64-v8a
+android.accept_sdk_license = True
+ios.codesign.allowed = False

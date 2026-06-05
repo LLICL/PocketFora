@@ -1,0 +1,6 @@
+opencv-python>=4.10
+pyzbar>=0.1.9
+Pillow>=11
+requests>=2.31
+# Kivy requiere Python 3.12 o 3.13 (no compatible con Python 3.14 aun)
+# kivy>=2.3.0
