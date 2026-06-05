@@ -36,18 +36,18 @@ class Reporter:
         r = datos["resumen"]
         lineas = []
         lineas.append(f"=== Reporte de {meses[datos['mes'] - 1]} {datos['anio']} ===")
-        lineas.append(f"Total gastado: S/ {self._formatear_total(r['gasto_total'])}")
+        lineas.append(f"Total gastado: $ {self._formatear_total(r['gasto_total'])}")
         lineas.append(f"Transacciones: {r['total_transacciones']}")
-        lineas.append(f"Promedio: S/ {self._formatear_total(r['promedio_por_transaccion'])}")
+        lineas.append(f"Promedio: $ {self._formatear_total(r['promedio_por_transaccion'])}")
         lineas.append("")
         lineas.append("--- Por categoría ---")
         for cat in datos["categorias"]:
             if cat["total_gastado"] > 0:
                 pct = (cat["total_gastado"] / r["gasto_total"] * 100) if r["gasto_total"] > 0 else 0
-                lineas.append(f"{cat['icono']} {cat['nombre']}: S/ {self._formatear_total(cat['total_gastado'])} ({pct:.1f}%) - {cat['cantidad']} transacciones")
+                lineas.append(f"{cat['icono']} {cat['nombre']}: $ {self._formatear_total(cat['total_gastado'])} ({pct:.1f}%) - {cat['cantidad']} transacciones")
         lineas.append("")
         lineas.append(f"--- Últimas transacciones ({len(datos['transacciones'])}) ---")
         for t in datos["transacciones"][:10]:
             icono = t.get("categoria_icono", "📁")
-            lineas.append(f"[{t['fecha']}] {icono} {t['comercio']}: S/ {self._formatear_total(t['total'])}")
+            lineas.append(f"[{t['fecha']}] {icono} {t['comercio']}: $ {self._formatear_total(t['total'])}")
         return "\n".join(lineas)

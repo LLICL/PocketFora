@@ -290,7 +290,7 @@ class PocketForaApp:
                      fg=C_INK3, font=("Segoe UI", 8, "bold"), anchor="w").pack(fill="x")
 
             value_color = C_DANGER if color == "danger" else C_INK
-            val = tk.Label(body, text="S/ 0", bg=C_SURFACE3, fg=value_color,
+            val = tk.Label(body, text="$ 0", bg=C_SURFACE3, fg=value_color,
                            font=("Segoe UI", 22, "bold"), anchor="w")
             val.pack(fill="x")
 
@@ -502,14 +502,33 @@ class PocketForaApp:
         container = tk.Frame(padre, bg=C_SURFACE)
         container.pack(fill="both", expand=True, padx=22, pady=16)
 
-        btn_frame = tk.Frame(container, bg=C_SURFACE)
-        btn_frame.pack(fill="x", pady=(0, 8))
+        selector_frame = tk.Frame(container, bg=C_SURFACE)
+        selector_frame.pack(fill="x", pady=(0, 8))
+
+        ahora = datetime.now()
+        meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+                  "Julio", "Agosto", "Setiembre", "Octubre", "Noviembre", "Diciembre"]
+
+        tk.Label(selector_frame, text="Mes:", bg=C_SURFACE, fg=C_INK2,
+                 font=("Segoe UI", 9)).pack(side="left", padx=(0, 4))
+        self.reporte_mes_var = tk.StringVar(value=meses[ahora.month-1])
+        self.reporte_mes_combo = ttk.Combobox(selector_frame, textvariable=self.reporte_mes_var,
+                                               values=meses, state="readonly", width=14, font=("Segoe UI", 9))
+        self.reporte_mes_combo.pack(side="left", padx=(0, 12))
+
+        tk.Label(selector_frame, text="Anio:", bg=C_SURFACE, fg=C_INK2,
+                 font=("Segoe UI", 9)).pack(side="left", padx=(0, 4))
+        self.reporte_anio_var = tk.StringVar(value=str(ahora.year))
+        anios = [str(a) for a in range(ahora.year-5, ahora.year+1)]
+        self.reporte_anio_combo = ttk.Combobox(selector_frame, textvariable=self.reporte_anio_var,
+                                                values=anios, state="readonly", width=8, font=("Segoe UI", 9))
+        self.reporte_anio_combo.pack(side="left", padx=(0, 16))
 
         btn_st = {"bg": C_SURFACE3, "fg": C_INK2, "bd": 1, "relief": "solid",
                   "font": ("Segoe UI", 9), "padx": 12, "pady": 5, "cursor": "hand2",
                   "activebackground": C_SURFACE2}
-        tk.Button(btn_frame, text="🔄  Generar Reporte", command=self.cargar_reporte, **btn_st).pack(side="left", padx=2)
-        tk.Button(btn_frame, text="📄  Descargar PDF", command=self.descargar_pdf, **btn_st).pack(side="left", padx=2)
+        tk.Button(selector_frame, text="🔄  Generar Reporte", command=self.cargar_reporte, **btn_st).pack(side="left", padx=2)
+        tk.Button(selector_frame, text="📄  Descargar PDF", command=self.descargar_pdf, **btn_st).pack(side="left", padx=2)
 
         self.reporte_text = scrolledtext.ScrolledText(container, font=("Consolas", 10),
                                                        wrap="word", state="disabled",
@@ -533,13 +552,13 @@ class PocketForaApp:
         # update stat widgets on dashboard
         card_gasto = self.stat_widgets.get("Gasto total", {}).get("val")
         if card_gasto:
-            card_gasto.config(text=f"S/ {total_f}")
+            card_gasto.config(text=f"$ {total_f}")
         card_tx = self.stat_widgets.get("Transacciones", {}).get("val")
         if card_tx:
             card_tx.config(text=str(resumen['total_transacciones']))
         card_prom = self.stat_widgets.get("Promedio diario", {}).get("val")
         if card_prom:
-            card_prom.config(text=f"S/ {prom_f}")
+            card_prom.config(text=f"$ {prom_f}")
 
         # update recent transactions
         self._actualizar_recientes()
@@ -586,7 +605,7 @@ class PocketForaApp:
             tag.pack(side="right", padx=(4, 0))
 
             # amount
-            amt = tk.Label(row, text=f"S/ {self._formatear_total(t['total'])}",
+            amt = tk.Label(row, text=f"$ {self._formatear_total(t['total'])}",
                             bg=C_SURFACE3, fg=C_DANGER,
                             font=("Segoe UI", 11, "bold"))
             amt.pack(side="right")
@@ -623,7 +642,7 @@ class PocketForaApp:
 
             color = C_ACCENT if i == len(meses)-1 else "#93c5fd" if i == len(meses)-2 else C_ACCENT_LIGHT
             self.bar_canvas.create_rectangle(x0, y0, x1, y1, fill=color, outline="")
-            lbl = f"S/{v:.0f}" if v == int(v) else f"S/{v:.1f}"
+            lbl = f"${v:.0f}" if v == int(v) else f"${v:.1f}"
             self.bar_canvas.create_text((x0+x1)/2, y0-4, text=lbl,
                                          fill=C_INK2, font=("Segoe UI", 7, "bold"))
             self.bar_canvas.create_text((x0+x1)/2, h-6, text=m,
@@ -653,7 +672,7 @@ class PocketForaApp:
                      fg=C_INK2, font=("Segoe UI", 9)).pack(side="left")
             tk.Label(top, text=f"{pct:.1f}%", bg=C_SURFACE3,
                      fg=C_INK3, font=("Segoe UI", 8)).pack(side="left", padx=4)
-            tk.Label(top, text=f"S/ {self._formatear_total(c['total_gastado'])}",
+            tk.Label(top, text=f"$ {self._formatear_total(c['total_gastado'])}",
                      bg=C_SURFACE3, fg=C_INK,
                      font=("Segoe UI", 9, "bold")).pack(side="right")
 
@@ -864,7 +883,7 @@ class PocketForaApp:
             cat = t.get("categoria_icono", "📁") or "📁"
             tag = t.get("categoria_nombre", "Otros") or "Otros"
             total_str = self._formatear_total(t["total"])
-            self.tree.insert("", "end", values=(t["id"], t["fecha"], t["comercio"], f"{cat} {tag}", f"S/ {total_str}"))
+            self.tree.insert("", "end", values=(t["id"], t["fecha"], t["comercio"], f"{cat} {tag}", f"$ {total_str}"))
 
     def eliminar_seleccionada(self):
         seleccion = self.tree.selection()
@@ -881,61 +900,288 @@ class PocketForaApp:
             self.cargar_historial()
             self.cargar_resumen()
 
+    def _mes_anio_seleccionados(self):
+        meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+                  "Julio", "Agosto", "Setiembre", "Octubre", "Noviembre", "Diciembre"]
+        mes_nombre = self.reporte_mes_var.get()
+        mes = meses.index(mes_nombre) + 1
+        anio = int(self.reporte_anio_var.get())
+        return mes, anio
+
     def cargar_reporte(self):
+        mes, anio = self._mes_anio_seleccionados()
         reporter = Reporter()
-        texto = reporter.texto_reporte_mensual()
+        texto = reporter.texto_reporte_mensual(anio, mes)
         self.reporte_text.config(state="normal")
         self.reporte_text.delete("1.0", "end")
         self.reporte_text.insert("1.0", texto)
         self.reporte_text.config(state="disabled")
 
     def descargar_pdf(self):
-        from fpdf import FPDF
         from tkinter import filedialog
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib import colors
+        from reportlab.lib.units import mm
+        from reportlab.pdfgen import canvas as rlcanvas
+        import matplotlib
+        matplotlib.use('Agg')
+        import matplotlib.pyplot as plt
+        import io
+
+        mes, anio = self._mes_anio_seleccionados()
+        meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+                  "Julio", "Agosto", "Setiembre", "Octubre", "Noviembre", "Diciembre"]
+        nombre_mes = meses[mes-1]
+        nombre_defecto = f"Reporte_{nombre_mes}_{anio}.pdf"
         ruta = filedialog.asksaveasfilename(
             title="Guardar reporte PDF",
             defaultextension=".pdf",
+            initialfile=nombre_defecto,
             filetypes=[("PDF", "*.pdf")]
         )
         if not ruta:
             return
         try:
             reporter = Reporter()
-            datos = reporter.reporte_mensual()
-            pdf = FPDF()
-            pdf.add_page()
-            meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-                      "Julio", "Agosto", "Setiembre", "Octubre", "Noviembre", "Diciembre"]
-            pdf.set_font("Helvetica", "B", 18)
-            pdf.cell(0, 12, f"PocketFora - Reporte {meses[datos['mes']-1]} {datos['anio']}", ln=True, align="C")
-            pdf.ln(8)
+            datos = reporter.reporte_mensual(anio, mes)
             r = datos["resumen"]
-            pdf.set_font("Helvetica", "B", 13)
-            pdf.cell(0, 8, "Resumen del Mes", ln=True)
-            pdf.set_font("Helvetica", "", 11)
-            pdf.cell(0, 7, f"Total gastado: S/ {r['gasto_total']:.2f}", ln=True)
-            pdf.cell(0, 7, f"Transacciones: {r['total_transacciones']}", ln=True)
-            pdf.cell(0, 7, f"Promedio: S/ {r['promedio_por_transaccion']:.2f}", ln=True)
-            pdf.ln(5)
-            pdf.set_font("Helvetica", "B", 13)
-            pdf.cell(0, 8, "Gasto por Categoria", ln=True)
-            pdf.set_font("Helvetica", "", 11)
-            for c in datos["categorias"]:
-                if c["total_gastado"] > 0:
-                    pct = (c["total_gastado"] / r["gasto_total"] * 100) if r["gasto_total"] > 0 else 0
-                    nombre_limpio = c['nombre'].encode('latin-1', 'replace').decode('latin-1')
-                    pdf.cell(0, 7, f"[{c['icono']}] {nombre_limpio}: S/ {c['total_gastado']:.2f} ({pct:.1f}%) - {c['cantidad']} trans.", ln=True)
-            pdf.ln(5)
-            pdf.set_font("Helvetica", "B", 13)
-            pdf.cell(0, 8, f"Ultimas Transacciones ({len(datos['transacciones'])})", ln=True)
-            pdf.set_font("Helvetica", "", 10)
-            for t in datos["transacciones"][:15]:
+            curr_total = r['gasto_total']
+            curr_txns = r['total_transacciones']
+            curr_avg = r['promedio_por_transaccion']
+
+            mes_prev = mes - 1
+            anio_prev = anio
+            if mes_prev == 0:
+                mes_prev = 12
+                anio_prev -= 1
+            prev = calcular_resumen_mensual(anio_prev, mes_prev)
+            prev_total = prev['gasto_total']
+            prev_txns = prev['total_transacciones']
+            prev_avg = prev['promedio_por_transaccion']
+
+            # ── palette ──
+            BLUE = colors.HexColor("#185FA5")
+            BLUE_LIGHT = colors.HexColor("#E6F1FB")
+            TEAL = colors.HexColor("#0F6E56")
+            TEAL_MID = colors.HexColor("#1D9E75")
+            AMBER = colors.HexColor("#854F0B")
+            AMBER_MID = colors.HexColor("#EF9F27")
+            GRAY_DARK = colors.HexColor("#2C2C2A")
+            GRAY_MID = colors.HexColor("#888780")
+            GRAY_LIGHT = colors.HexColor("#F1EFE8")
+            WHITE = colors.white
+            RED_MID = colors.HexColor("#E24B4A")
+            GREEN_MID = colors.HexColor("#639922")
+            W, H = A4
+
+            def fmt(n):
+                return f"$ {n:,.0f}"
+
+            def pct_diff(c, p):
+                if p == 0:
+                    return 0
+                return (c - p) / p * 100
+
+            def draw_rect(cnv, x, y, w, h, fill=None, stroke=None, radius=4):
+                cnv.saveState()
+                if fill:
+                    cnv.setFillColor(fill)
+                if stroke:
+                    cnv.setStrokeColor(stroke)
+                    cnv.setLineWidth(0.5)
+                else:
+                    cnv.setLineWidth(0)
+                p = cnv.beginPath()
+                p.roundRect(x, y, w, h, radius)
+                cnv.drawPath(p, fill=1 if fill else 0, stroke=1 if stroke else 0)
+                cnv.restoreState()
+
+            def draw_text(cnv, text, x, y, size=10, color=GRAY_DARK, bold=False, align="left"):
+                cnv.saveState()
+                cnv.setFillColor(color)
+                cnv.setFont("Helvetica-Bold" if bold else "Helvetica", size)
+                if align == "right":
+                    cnv.drawRightString(x, y, text)
+                elif align == "center":
+                    cnv.drawCentredString(x, y, text)
+                else:
+                    cnv.drawString(x, y, text)
+                cnv.restoreState()
+
+            def draw_line(cnv, x1, y1, x2, y2, color=GRAY_LIGHT, width=0.5):
+                cnv.saveState()
+                cnv.setStrokeColor(color)
+                cnv.setLineWidth(width)
+                cnv.line(x1, y1, x2, y2)
+                cnv.restoreState()
+
+            def kpi_card(cnv, x, y, w, h, label, value, sub, accent=BLUE):
+                draw_rect(cnv, x, y, w, h, fill=GRAY_LIGHT, radius=6)
+                draw_text(cnv, label.upper(), x+10, y+h-16, size=7, color=GRAY_MID)
+                draw_text(cnv, value, x+10, y+h-38, size=18, color=accent, bold=True)
+                draw_text(cnv, sub, x+10, y+10, size=8, color=GRAY_MID)
+
+            def delta_badge(cnv, x, y, curr, prev_val, bigger_is_bad=False):
+                diff = pct_diff(curr, prev_val)
+                up = diff >= 0
+                color = RED_MID if (up and bigger_is_bad) or (not up and not bigger_is_bad) else GREEN_MID
+                arrow = "+" if up else ""
+                label = f"{arrow}{diff:.1f}% vs {meses[mes_prev-1].lower()}"
+                draw_text(cnv, label, x, y, size=8, color=color)
+
+            C = rlcanvas.Canvas(ruta, pagesize=A4)
+            margin = 18*mm
+
+            # ── HEADER ──
+            draw_rect(C, 0, H-52, W, 52, fill=GRAY_DARK)
+            draw_text(C, "PocketFora", margin, H-22, size=18, color=WHITE, bold=True)
+            draw_text(C, "Reporte mensual de gastos", margin, H-36, size=9, color=GRAY_MID)
+            draw_text(C, f"{nombre_mes.upper()} {anio}", W-margin, H-22, size=9, color=BLUE_LIGHT, bold=True, align="right")
+            from datetime import date
+            hoy = date.today()
+            draw_text(C, f"Generado el {hoy.day:02d} {meses[hoy.month-1].lower()} {hoy.year}", W-margin, H-36, size=8, color=GRAY_MID, align="right")
+
+            y_cursor = H - 52 - 14
+
+            # ── KPI ROW ──
+            kw = (W - 2*margin - 12) / 3
+            kh = 54
+            ky = y_cursor - kh
+            kpi_card(C, margin, ky, kw, kh, "Total gastado", fmt(curr_total), "este mes", BLUE)
+            kpi_card(C, margin+kw+6, ky, kw, kh, "Transacciones", str(curr_txns), "este mes", TEAL)
+            kpi_card(C, margin+2*(kw+6), ky, kw, kh, "Promedio por tx", fmt(curr_avg), "por transaccion", AMBER)
+
+            delta_badge(C, margin+8, ky-13, curr_total, prev_total, bigger_is_bad=True)
+            delta_badge(C, margin+kw+6+8, ky-13, curr_txns, prev_txns, bigger_is_bad=True)
+            delta_badge(C, margin+2*(kw+6)+8, ky-13, curr_avg, prev_avg, bigger_is_bad=True)
+
+            y_cursor = ky - 24
+
+            # ── SECTION: COMPARATIVA ──
+            draw_text(C, f"COMPARATIVA -- {nombre_mes.upper()} VS {meses[mes_prev-1].upper()} {anio_prev}",
+                      margin, y_cursor, size=7, color=GRAY_MID, bold=True)
+            draw_line(C, margin, y_cursor-4, W-margin, y_cursor-4)
+            y_cursor -= 14
+
+            col_x = [margin, margin+120, margin+210, margin+290, margin+370]
+            headers = ["Indicador", f"{meses[mes_prev-1]} {anio_prev}", f"{nombre_mes} {anio}", "Diferencia", "Cambio %"]
+            for i, h_label in enumerate(headers):
+                align_h = "right" if i > 0 else "left"
+                draw_text(C, h_label, col_x[i], y_cursor, size=8, color=GRAY_MID, bold=True, align=align_h)
+            draw_line(C, margin, y_cursor-4, W-margin, y_cursor-4)
+            y_cursor -= 14
+
+            def _pct_diff_str(curr_v, prev_v):
+                d = pct_diff(curr_v, prev_v)
+                return f"{d:+.1f}%"
+
+            rows = [
+                ("Total gastado",  fmt(prev_total), fmt(curr_total), fmt(curr_total-prev_total), _pct_diff_str(curr_total, prev_total), True),
+                ("Transacciones",  str(prev_txns),  str(curr_txns),  str(curr_txns-prev_txns),   _pct_diff_str(curr_txns, prev_txns), True),
+                ("Promedio por tx", fmt(prev_avg),  fmt(curr_avg),   fmt(curr_avg-prev_avg),     _pct_diff_str(curr_avg, prev_avg), True),
+            ]
+
+            for label, v_prev, v_curr, diff_val, diff_pct_str, bad_if_up in rows:
+                val = float(diff_pct_str.replace('%','').replace('+',''))
+                is_up = val >= 0
+                d_color = RED_MID if (is_up and bad_if_up) else GREEN_MID
+                draw_text(C, label, col_x[0], y_cursor, size=9)
+                draw_text(C, v_prev, col_x[1], y_cursor, size=9, color=GRAY_MID, align="right")
+                draw_text(C, v_curr, col_x[2], y_cursor, size=9, color=BLUE, bold=True, align="right")
+                draw_text(C, diff_val, col_x[3], y_cursor, size=9, color=d_color, align="right")
+                draw_text(C, diff_pct_str, col_x[4], y_cursor, size=9, color=d_color, bold=True, align="right")
+                y_cursor -= 3
+                draw_line(C, margin, y_cursor, W-margin, y_cursor, color=GRAY_LIGHT)
+                y_cursor -= 11
+
+            y_cursor -= 8
+
+            # ── SECTION: GRAFICO ──
+            draw_text(C, "EVOLUCION MENSUAL", margin, y_cursor, size=7, color=GRAY_MID, bold=True)
+            draw_line(C, margin, y_cursor-4, W-margin, y_cursor-4)
+            y_cursor -= 14
+
+            months_labels = ["Ene", "Feb", "Mar", "Abr", "May", "Jun",
+                             "Jul", "Ago", "Set", "Oct", "Nov", "Dic"]
+            months_curr = []
+            months_prev = []
+            for i in range(6):
+                m = mes - 5 + i
+                a = anio
+                while m < 1:
+                    m += 12
+                    a -= 1
+                while m > 12:
+                    m -= 12
+                    a += 1
+                r_m = calcular_resumen_mensual(a, m)
+                months_curr.append(r_m['gasto_total'])
+                r_prev = calcular_resumen_mensual(a, m-1 if m > 1 else 12)
+                months_prev.append(r_prev['gasto_total'])
+
+            fig, ax = plt.subplots(figsize=(5.2, 2.0), dpi=150)
+            fig.patch.set_alpha(0)
+            ax.set_facecolor("none")
+            x = range(6)
+            w = 0.35
+            ax.bar([i - w/2 for i in x], months_prev, width=w,
+                   color="#B5D4F4", label="Mes anterior", zorder=3)
+            ax.bar([i + w/2 for i in x], months_curr, width=w,
+                   color="#378ADD", label="Mes actual", zorder=3)
+            ax.set_xticks(list(x))
+            ax.set_xticklabels([months_labels[(mes-5+i) % 12] for i in range(6)], fontsize=8, color="#888780")
+            ax.yaxis.set_visible(False)
+            for s in ['top', 'right', 'left']:
+                ax.spines[s].set_visible(False)
+            ax.spines['bottom'].set_color("#D3D1C7")
+            ax.tick_params(axis='x', colors='#888780', length=0)
+            ax.set_axisbelow(True)
+            ax.legend(fontsize=8, frameon=False, labelcolor="#888780", loc="upper left")
+            plt.tight_layout(pad=0.3)
+            import tempfile
+            chart_file = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
+            plt.savefig(chart_file.name, format='png', transparent=True, dpi=150)
+            plt.close()
+
+            chart_h = 90
+            C.drawImage(chart_file.name, margin, y_cursor-chart_h, width=W-2*margin, height=chart_h)
+            chart_file.close()
+            os.unlink(chart_file.name)
+            y_cursor -= chart_h + 10
+
+            # ── SECTION: ULTIMAS TRANSACCIONES ──
+            draw_text(C, "ULTIMAS TRANSACCIONES", margin, y_cursor, size=7, color=GRAY_MID, bold=True)
+            draw_line(C, margin, y_cursor-4, W-margin, y_cursor-4)
+            y_cursor -= 14
+
+            colores_tx = [BLUE, TEAL_MID, AMBER_MID, RED_MID, GREEN_MID, colors.HexColor("#7C3AED"),
+                          colors.HexColor("#E11D48"), colors.HexColor("#0891B2"), colors.HexColor("#D97706")]
+            for idx, t in enumerate(datos["transacciones"][:15]):
+                color = colores_tx[idx % len(colores_tx)]
+                C.saveState()
+                C.setFillColor(color)
+                C.circle(margin+5, y_cursor+3, 4, fill=1, stroke=0)
+                C.restoreState()
                 comercio_limpio = t['comercio'].encode('latin-1', 'replace').decode('latin-1')
-                pdf.cell(0, 6, f"[{t['fecha']}] {comercio_limpio}: S/ {t['total']:.2f}", ln=True)
-            pdf.output(ruta)
+                draw_text(C, comercio_limpio, margin+15, y_cursor+5, size=9, bold=True)
+                draw_text(C, t['fecha'], margin+15, y_cursor-5, size=8, color=GRAY_MID)
+                draw_text(C, fmt(t['total']), W-margin, y_cursor+3, size=11, color=color, bold=True, align="right")
+                y_cursor -= 6
+                draw_line(C, margin, y_cursor, W-margin, y_cursor, color=GRAY_LIGHT)
+                y_cursor -= 14
+
+            # ── FOOTER ──
+            draw_rect(C, 0, 0, W, 24, fill=GRAY_LIGHT)
+            draw_text(C, f"PocketFora · Reporte generado automaticamente · Datos al {hoy.day:02d} {meses[hoy.month-1].lower()} {hoy.year}",
+                      margin, 8, size=7.5, color=GRAY_MID)
+            draw_text(C, "Pagina 1 de 1", W-margin, 8, size=7.5, color=GRAY_MID, align="right")
+
+            C.showPage()
+            C.save()
             messagebox.showinfo("PDF", f"Reporte guardado en:\n{ruta}")
         except Exception as e:
-            messagebox.showerror("Error PDF", f"No se pudo generar el PDF:\n{type(e).__name__}: {e}")
+            import traceback
+            messagebox.showerror("Error PDF", f"No se pudo generar el PDF:\n{type(e).__name__}: {e}\n\n{traceback.format_exc()}")
 
 
 def main():
