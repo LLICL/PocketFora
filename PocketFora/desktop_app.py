@@ -20,21 +20,21 @@ from scanner.qr_scanner import QRScanner
 from analysis.reporter import Reporter
 
 # ── Colores del diseño ──
-C_INK          = "#1a1a2e"
-C_INK2         = "#3a3a5c"
-C_INK3         = "#7c7c9a"
+C_INK          = "#1a0a2e"
+C_INK2         = "#3a2560"
+C_INK3         = "#7c5c9a"
 C_SURFACE      = "#f5f4f0"
 C_SURFACE2     = "#ede9e1"
 C_SURFACE3     = "#ffffff"
-C_ACCENT       = "#2563eb"
-C_ACCENT_LIGHT = "#dbeafe"
+C_ACCENT       = "#7c3aed"
+C_ACCENT_LIGHT = "#ede9fe"
 C_DANGER       = "#dc2626"
 C_DANGER_LIGHT = "#fee2e2"
 C_SUCCESS      = "#16a34a"
 C_SUCCESS_LIGHT= "#dcfce7"
 C_WARNING      = "#d97706"
 C_WARNING_LIGHT= "#fef3c7"
-C_BORDER       = "#1c1c33"
+C_BORDER       = "#2e1a4a"
 C_BORDER_TK    = "#e0dfdb"
 
 FONT_HEAD = ("Segoe UI", 10, "bold")
@@ -89,11 +89,18 @@ class PocketForaApp:
         logo_frame = tk.Frame(self.sidebar, bg=C_INK)
         logo_frame.pack(fill="x", padx=16, pady=(20, 16))
 
-        icon_frame = tk.Frame(logo_frame, bg=C_ACCENT, width=34, height=34)
-        icon_frame.pack(side="left", padx=(0, 10))
-        icon_frame.pack_propagate(False)
-        lbl_icon = tk.Label(icon_frame, text="🏪", bg=C_ACCENT, fg="white", font=("Segoe UI", 14))
-        lbl_icon.place(relx=0.5, rely=0.5, anchor="center")
+        logo_path = os.path.join(os.path.dirname(__file__), "logo_pocketfora.png")
+        if os.path.exists(logo_path):
+            img_pil = Image.open(logo_path).resize((56, 56), Image.LANCZOS)
+            self.logo_img = ImageTk.PhotoImage(img_pil)
+            lbl_logo = tk.Label(logo_frame, image=self.logo_img, bg=C_INK)
+            lbl_logo.pack(side="left", padx=(0, 12))
+        else:
+            icon_frame = tk.Frame(logo_frame, bg=C_ACCENT, width=56, height=56)
+            icon_frame.pack(side="left", padx=(0, 12))
+            icon_frame.pack_propagate(False)
+            lbl_icon = tk.Label(icon_frame, text="🏪", bg=C_ACCENT, fg="white", font=("Segoe UI", 24))
+            lbl_icon.place(relx=0.5, rely=0.5, anchor="center")
 
         tk.Label(logo_frame, text="PocketFora", bg=C_INK, fg="white",
                  font=("Segoe UI", 15, "bold")).pack(anchor="w")
@@ -103,14 +110,32 @@ class PocketForaApp:
         nav_frame = tk.Frame(self.sidebar, bg=C_INK)
         nav_frame.pack(fill="both", expand=True, padx=8, pady=(8, 0))
 
+        base = os.path.dirname(os.path.abspath(__file__))
+        icon_map = {
+            "inicio":    "inicio_logo.png",
+            "escaner":   "escaneo_logo.png",
+            "historial": "historial_logo.png",
+            "reporte":   "reporte_logo.png",
+        }
+        self.nav_icons = {}
+        for k, fn in icon_map.items():
+            path = os.path.join(base, fn)
+            if os.path.exists(path):
+                img = Image.open(path).resize((24, 24), Image.LANCZOS)
+                self.nav_icons[k] = ImageTk.PhotoImage(img)
+            else:
+                self.nav_icons[k] = None
+
+
+
         titulos = [
             ("PRINCIPAL", [
-                ("inicio",    "Inicio",      "◈"),
-                ("escaner",   "Escanear",    "◈"),
-                ("historial", "Historial",   "◈"),
+                ("inicio",    "Inicio"),
+                ("escaner",   "Escanear"),
+                ("historial", "Historial"),
             ]),
             ("ANÁLISIS", [
-                ("reporte",   "Reporte",     "◈"),
+                ("reporte",   "Reporte"),
             ]),
         ]
 
@@ -120,16 +145,39 @@ class PocketForaApp:
             tk.Label(nav_frame, text=seccion, bg=C_INK,
                      fg="#5a5a68", font=("Segoe UI", 8, "bold"),
                      anchor="w", padx=8).pack(fill="x", pady=(14, 4))
-            for key, texto, icono in items:
-                lbl = tk.Label(nav_frame, text=f"  {icono}  {texto}", bg=C_INK,
+            for key, texto in items:
+                item_frame = tk.Frame(nav_frame, bg=C_INK, cursor="hand2")
+                item_frame.pack(fill="x", padx=4, pady=2)
+                item_frame.bind("<Enter>", lambda e, f=item_frame, k=key: f.config(bg="#2e1a50") if k != self.current_page else None)
+                item_frame.bind("<Leave>", lambda e, f=item_frame, k=key: f.config(bg=C_INK) if k != self.current_page else None)
+                item_frame.bind("<Button-1>", lambda e, k=key: self._navegar(k))
+
+                icon_bg = tk.Frame(item_frame, bg=C_ACCENT, width=28, height=28)
+                icon_bg.pack(side="left", padx=(8, 10), pady=4)
+                icon_bg.pack_propagate(False)
+                icon_bg.bind("<Button-1>", lambda e, k=key: self._navegar(k))
+                icon_bg.bind("<Enter>", lambda e, f=item_frame: f.config(bg="#2e1a50"))
+                icon_bg.bind("<Leave>", lambda e, f=item_frame: f.config(bg=C_INK))
+
+                if self.nav_icons.get(key):
+                    icon_lbl = tk.Label(icon_bg, image=self.nav_icons[key], bg=C_ACCENT)
+                    icon_lbl.place(relx=0.5, rely=0.5, anchor="center")
+                    icon_lbl.bind("<Button-1>", lambda e, k=key: self._navegar(k))
+                    icon_lbl.bind("<Enter>", lambda e, f=item_frame: f.config(bg="#2e1a50"))
+                    icon_lbl.bind("<Leave>", lambda e, f=item_frame: f.config(bg=C_INK))
+                else:
+                    tk.Label(icon_bg, text="◈", bg=C_ACCENT, fg="white",
+                             font=("Segoe UI", 12)).place(relx=0.5, rely=0.5, anchor="center")
+
+                lbl = tk.Label(item_frame, text=texto, bg=C_INK,
                                fg="#91919a",
-                               font=("Segoe UI", 10), anchor="w", padx=10, pady=7,
-                               cursor="hand2")
-                lbl.pack(fill="x")
-                lbl.bind("<Enter>", lambda e, l=lbl: l.config(bg="#252540") if l != self.nav_labels.get(self.current_page) else None)
-                lbl.bind("<Leave>", lambda e, l=lbl: l.config(bg=C_INK) if l != self.nav_labels.get(self.current_page) else None)
+                               font=("Segoe UI", 10), anchor="w", cursor="hand2")
+                lbl.pack(side="left", fill="x", expand=True)
                 lbl.bind("<Button-1>", lambda e, k=key: self._navegar(k))
-                self.nav_labels[key] = lbl
+                lbl.bind("<Enter>", lambda e, f=item_frame, k=key: f.config(bg="#2e1a50") if k != self.current_page else None)
+                lbl.bind("<Leave>", lambda e, f=item_frame, k=key: f.config(bg=C_INK) if k != self.current_page else None)
+
+                self.nav_labels[key] = (item_frame, lbl)
 
         # spacer to push nav up
         tk.Frame(self.sidebar, bg=C_INK).pack(fill="both", expand=True)
@@ -184,12 +232,14 @@ class PocketForaApp:
             # reset nav style
             old = self.nav_labels.get(self.current_page)
             if old:
-                old.config(bg=C_INK, fg="#91919a")
+                old[0].config(bg=C_INK)
+                old[1].config(fg="#91919a")
         self.current_page = nombre
         self.paginas[nombre].grid()
         new = self.nav_labels.get(nombre)
         if new:
-            new.config(bg="#252540", fg="white")
+            new[0].config(bg="#2e1a50")
+            new[1].config(fg="white")
         # update topbar
         titulos = {
             "inicio": ("Resumen del Mes", "Tus gastos del mes actual"),
@@ -221,8 +271,13 @@ class PocketForaApp:
         scroll = ttk.Scrollbar(padre, orient="vertical", command=canvas.yview)
         scroll_frame = tk.Frame(canvas, bg=C_SURFACE)
 
-        scroll_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
+        canvas_window = canvas.create_window((0, 0), window=scroll_frame, anchor="nw")
+        def _conf_canvas(event):
+            canvas.itemconfig(canvas_window, width=event.width)
+        canvas.bind("<Configure>", _conf_canvas)
+        def _conf_frame(event):
+            canvas.configure(scrollregion=canvas.bbox("all"))
+        scroll_frame.bind("<Configure>", _conf_frame)
         canvas.configure(yscrollcommand=scroll.set)
 
         canvas.grid(row=0, column=0, sticky="nsew")
@@ -269,13 +324,13 @@ class PocketForaApp:
 
         card_data = [
             ("Gasto total",   "danger",  "◆"),
-            ("Transacciones", "blue",    "◆"),
+            ("Transacciones", "purple",    "◆"),
             ("Promedio diario","green",  "◆"),
         ]
 
         self.stat_widgets = {}
         for i, (label, color, icon) in enumerate(card_data):
-            border_color = {"danger": C_DANGER, "blue": C_ACCENT, "green": C_SUCCESS}[color]
+            border_color = {"danger": C_DANGER, "purple": C_ACCENT, "green": C_SUCCESS}[color]
             card = tk.Frame(stats, bg=C_SURFACE3, bd=0, highlightbackground=C_BORDER_TK, highlightthickness=1)
             card.grid(row=0, column=i, sticky="nsew", padx=4)
 
@@ -449,7 +504,7 @@ class PocketForaApp:
         tk.Button(confirm_btn_frame, text="✅  Guardar", command=self.guardar_transaccion,
                   bg=C_ACCENT, fg="white", bd=0, padx=16, pady=5,
                   font=("Segoe UI", 9, "bold"), cursor="hand2",
-                  activebackground="#1d4ed8").pack(side="left", padx=5)
+                   activebackground="#6d28d9").pack(side="left", padx=5)
         tk.Button(confirm_btn_frame, text="🗑️  Descartar", command=self.descartar_transaccion,
                   bg=C_SURFACE3, fg=C_INK2, bd=1, relief="solid", padx=14, pady=5,
                   font=("Segoe UI", 9), cursor="hand2",
@@ -481,11 +536,11 @@ class PocketForaApp:
         self.tree.heading("comercio", text="Comercio")
         self.tree.heading("categoria", text="Categoría")
         self.tree.heading("total", text="Total")
-        self.tree.column("id", width=40, anchor="center")
-        self.tree.column("fecha", width=90)
-        self.tree.column("comercio", width=230)
-        self.tree.column("categoria", width=130)
-        self.tree.column("total", width=90, anchor="e")
+        self.tree.column("id", width=40, minwidth=40, anchor="center", stretch=False)
+        self.tree.column("fecha", width=90, minwidth=70, stretch=True)
+        self.tree.column("comercio", width=230, minwidth=120, stretch=True)
+        self.tree.column("categoria", width=130, minwidth=80, stretch=True)
+        self.tree.column("total", width=90, minwidth=70, anchor="e", stretch=False)
 
         scroll = ttk.Scrollbar(container, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=scroll.set)
@@ -692,7 +747,7 @@ class PocketForaApp:
         )
         if not ruta:
             return
-        self.lbl_estado.config(text="Leyendo imagen...", fg="blue")
+        self.lbl_estado.config(text="Leyendo imagen...", fg=C_ACCENT)
         self.root.update()
         self.imagen_cargada = self._leer_imagen(ruta)
         if self.imagen_cargada is None:
@@ -711,7 +766,7 @@ class PocketForaApp:
         if self.imagen_cargada is None:
             messagebox.showwarning("Sin imagen", "Primero carga una imagen")
             return
-        self.lbl_estado.config(text="Escaneando QR...", fg="blue")
+        self.lbl_estado.config(text="Escaneando QR...", fg=C_ACCENT)
         self.root.update()
         try:
             scanner = QRScanner()
@@ -760,6 +815,14 @@ class PocketForaApp:
         return cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
 
     def mostrar_imagen_en_frame(self, frame):
+        self._imagen_original = frame
+        self._redibujar_imagen()
+        self.video_frame.bind("<Configure>", self._redibujar_imagen)
+
+    def _redibujar_imagen(self, event=None):
+        frame = getattr(self, "_imagen_original", None)
+        if frame is None:
+            return
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         h, w = frame_rgb.shape[:2]
         cw = self.video_frame.winfo_width() or 640
@@ -774,7 +837,6 @@ class PocketForaApp:
             self.video_canvas.pack_forget()
         self.video_canvas = tk.Canvas(self.video_frame, bg="black", bd=0, highlightthickness=0)
         self.video_canvas.pack(fill="both", expand=True)
-        self.video_canvas.config(width=nuevo_w, height=nuevo_h)
         self.video_canvas.create_image(nuevo_w // 2, nuevo_h // 2, image=imgtk)
         self.video_canvas.image = imgtk
 
@@ -798,6 +860,8 @@ class PocketForaApp:
 
     def _limpiar_escaner(self):
         self.imagen_cargada = None
+        self._imagen_original = None
+        self.video_frame.unbind("<Configure>")
         if hasattr(self, "video_canvas"):
             self.video_canvas.pack_forget()
         self.video_label.pack(expand=True)
@@ -960,13 +1024,13 @@ class PocketForaApp:
             prev_avg = prev['promedio_por_transaccion']
 
             # ── palette ──
-            BLUE = colors.HexColor("#185FA5")
-            BLUE_LIGHT = colors.HexColor("#E6F1FB")
+            PURPLE = colors.HexColor("#7C3AED")
+            PURPLE_LIGHT = colors.HexColor("#EDE9FE")
             TEAL = colors.HexColor("#0F6E56")
             TEAL_MID = colors.HexColor("#1D9E75")
             AMBER = colors.HexColor("#854F0B")
             AMBER_MID = colors.HexColor("#EF9F27")
-            GRAY_DARK = colors.HexColor("#2C2C2A")
+            GRAY_DARK = colors.HexColor("#1E1136")
             GRAY_MID = colors.HexColor("#888780")
             GRAY_LIGHT = colors.HexColor("#F1EFE8")
             WHITE = colors.white
@@ -1036,7 +1100,7 @@ class PocketForaApp:
             draw_rect(C, 0, H-52, W, 52, fill=GRAY_DARK)
             draw_text(C, "PocketFora", margin, H-22, size=18, color=WHITE, bold=True)
             draw_text(C, "Reporte mensual de gastos", margin, H-36, size=9, color=GRAY_MID)
-            draw_text(C, f"{nombre_mes.upper()} {anio}", W-margin, H-22, size=9, color=BLUE_LIGHT, bold=True, align="right")
+            draw_text(C, f"{nombre_mes.upper()} {anio}", W-margin, H-22, size=9, color=PURPLE_LIGHT, bold=True, align="right")
             from datetime import date
             hoy = date.today()
             draw_text(C, f"Generado el {hoy.day:02d} {meses[hoy.month-1].lower()} {hoy.year}", W-margin, H-36, size=8, color=GRAY_MID, align="right")
@@ -1047,7 +1111,7 @@ class PocketForaApp:
             kw = (W - 2*margin - 12) / 3
             kh = 54
             ky = y_cursor - kh
-            kpi_card(C, margin, ky, kw, kh, "Total gastado", fmt(curr_total), "este mes", BLUE)
+            kpi_card(C, margin, ky, kw, kh, "Total gastado", fmt(curr_total), "este mes", PURPLE)
             kpi_card(C, margin+kw+6, ky, kw, kh, "Transacciones", str(curr_txns), "este mes", TEAL)
             kpi_card(C, margin+2*(kw+6), ky, kw, kh, "Promedio por tx", fmt(curr_avg), "por transaccion", AMBER)
 
@@ -1087,7 +1151,7 @@ class PocketForaApp:
                 d_color = RED_MID if (is_up and bad_if_up) else GREEN_MID
                 draw_text(C, label, col_x[0], y_cursor, size=9)
                 draw_text(C, v_prev, col_x[1], y_cursor, size=9, color=GRAY_MID, align="right")
-                draw_text(C, v_curr, col_x[2], y_cursor, size=9, color=BLUE, bold=True, align="right")
+                draw_text(C, v_curr, col_x[2], y_cursor, size=9, color=PURPLE, bold=True, align="right")
                 draw_text(C, diff_val, col_x[3], y_cursor, size=9, color=d_color, align="right")
                 draw_text(C, diff_pct_str, col_x[4], y_cursor, size=9, color=d_color, bold=True, align="right")
                 y_cursor -= 3
@@ -1125,9 +1189,9 @@ class PocketForaApp:
             x = range(6)
             w = 0.35
             ax.bar([i - w/2 for i in x], months_prev, width=w,
-                   color="#B5D4F4", label="Mes anterior", zorder=3)
+                   color="#D8C4F0", label="Mes anterior", zorder=3)
             ax.bar([i + w/2 for i in x], months_curr, width=w,
-                   color="#378ADD", label="Mes actual", zorder=3)
+                   color="#7C3AED", label="Mes actual", zorder=3)
             ax.set_xticks(list(x))
             ax.set_xticklabels([months_labels[(mes-5+i) % 12] for i in range(6)], fontsize=8, color="#888780")
             ax.yaxis.set_visible(False)
@@ -1154,7 +1218,7 @@ class PocketForaApp:
             draw_line(C, margin, y_cursor-4, W-margin, y_cursor-4)
             y_cursor -= 14
 
-            colores_tx = [BLUE, TEAL_MID, AMBER_MID, RED_MID, GREEN_MID, colors.HexColor("#7C3AED"),
+            colores_tx = [PURPLE, TEAL_MID, AMBER_MID, RED_MID, GREEN_MID, colors.HexColor("#7C3AED"),
                           colors.HexColor("#E11D48"), colors.HexColor("#0891B2"), colors.HexColor("#D97706")]
             for idx, t in enumerate(datos["transacciones"][:15]):
                 color = colores_tx[idx % len(colores_tx)]
