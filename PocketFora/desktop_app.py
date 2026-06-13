@@ -1,8 +1,9 @@
 import sys
 import os
+import ctypes
 from datetime import datetime
 import tkinter as tk
-from tkinter import ttk, messagebox, scrolledtext
+from tkinter import ttk, messagebox, scrolledtext, font as tkfont
 import threading
 import cv2
 import numpy as np
@@ -36,9 +37,41 @@ C_WARNING      = "#d97706"
 C_WARNING_LIGHT= "#fef3c7"
 C_BORDER       = "#2e1a4a"
 C_BORDER_TK    = "#e0dfdb"
+C_AMOUNT_RED   = "#dc2626"
+C_AMOUNT_YELLOW= "#d97706"
+C_AMOUNT_GREEN = "#16a34a"
+C_AMOUNT_BLUE  = "#2563eb"
+
+
+def color_por_monto(valor):
+    if valor > 100000:
+        return C_AMOUNT_RED
+    elif valor > 50000:
+        return C_AMOUNT_YELLOW
+    elif valor > 20000:
+        return C_AMOUNT_GREEN
+    else:
+        return C_AMOUNT_BLUE
+
 
 FONT_HEAD = ("Segoe UI", 10, "bold")
 FONT_BODY = ("Segoe UI", 10)
+
+FONT_TITLE_FAMILY = "Honfleur Heavy"
+FONT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fonts", "Honfleur-Heavy.otf")
+
+
+def _registrar_fuente():
+    if not os.path.exists(FONT_PATH):
+        return False
+    try:
+        ctypes.windll.gdi32.AddFontResourceExW(FONT_PATH, 0x10, 0)
+        return True
+    except Exception:
+        return False
+
+
+_registrar_fuente()
 
 
 class PocketForaApp:
@@ -102,8 +135,12 @@ class PocketForaApp:
             lbl_icon = tk.Label(icon_frame, text="🏪", bg=C_ACCENT, fg="white", font=("Segoe UI", 24))
             lbl_icon.place(relx=0.5, rely=0.5, anchor="center")
 
-        tk.Label(logo_frame, text="PocketFora", bg=C_INK, fg="white",
-                 font=("Segoe UI", 15, "bold")).pack(anchor="w")
+        logo_text_frame = tk.Frame(logo_frame, bg=C_INK)
+        logo_text_frame.pack(anchor="w")
+        tk.Label(logo_text_frame, text="Pocket", bg=C_INK, fg="white",
+                 font=(FONT_TITLE_FAMILY, 18)).pack(side="left")
+        tk.Label(logo_text_frame, text="FORA", bg=C_INK, fg=C_ACCENT,
+                 font=(FONT_TITLE_FAMILY, 18)).pack(side="left")
         tk.Label(logo_frame, text="Gestión de gastos", bg=C_INK,
                  fg="#71717d", font=("Segoe UI", 9)).pack(anchor="w")
 
@@ -143,7 +180,7 @@ class PocketForaApp:
 
         for seccion, items in titulos:
             tk.Label(nav_frame, text=seccion, bg=C_INK,
-                     fg="#5a5a68", font=("Segoe UI", 8, "bold"),
+                     fg="#5a5a68", font=(FONT_TITLE_FAMILY, 10),
                      anchor="w", padx=8).pack(fill="x", pady=(14, 4))
             for key, texto in items:
                 item_frame = tk.Frame(nav_frame, bg=C_INK, cursor="hand2")
@@ -193,7 +230,7 @@ class PocketForaApp:
 
         self.topbar_title = tk.Label(self.topbar, text="Resumen del Mes",
                                       bg=C_SURFACE3, fg=C_INK,
-                                      font=("Segoe UI", 16, "bold"), anchor="w")
+                                      font=(FONT_TITLE_FAMILY, 20), anchor="w")
         self.topbar_title.grid(row=0, column=0, padx=(22, 0), pady=(14, 2), sticky="w")
 
         self.topbar_sub = tk.Label(self.topbar, text="Cargando...",
@@ -291,7 +328,7 @@ class PocketForaApp:
         container = tk.Frame(scroll_frame, bg=C_SURFACE)
         container.pack(fill="both", expand=True, padx=22, pady=16)
 
-        # ── Banner QR ──
+        # ── Banner registro manual ──
         banner = tk.Frame(container, bg=C_ACCENT_LIGHT, bd=0, highlightbackground="#1c2853", highlightthickness=1)
         banner.pack(fill="x", pady=(0, 18))
 
@@ -301,21 +338,21 @@ class PocketForaApp:
         icon_b = tk.Frame(inner, bg=C_ACCENT, width=36, height=36)
         icon_b.pack(side="left", padx=(0, 12))
         icon_b.pack_propagate(False)
-        tk.Label(icon_b, text="◈", bg=C_ACCENT, fg="white",
+        tk.Label(icon_b, text="✎", bg=C_ACCENT, fg="white",
                  font=("Segoe UI", 16)).place(relx=0.5, rely=0.5, anchor="center")
 
         txt_f = tk.Frame(inner, bg=C_ACCENT_LIGHT)
         txt_f.pack(side="left", fill="x", expand=True)
-        tk.Label(txt_f, text="¿Tienes una factura nueva?", bg=C_ACCENT_LIGHT,
-                 fg=C_INK, font=("Segoe UI", 10, "bold"), anchor="w").pack(fill="x")
-        tk.Label(txt_f, text="Escanea el código QR para registrar el gasto automáticamente.",
+        tk.Label(txt_f, text="¿Tienes una factura sin QR?", bg=C_ACCENT_LIGHT,
+                 fg=C_INK, font=(FONT_TITLE_FAMILY, 13), anchor="w").pack(fill="x")
+        tk.Label(txt_f, text="Regístrala manualmente llenando todos los datos.",
                  bg=C_ACCENT_LIGHT, fg=C_INK2, font=("Segoe UI", 9), anchor="w").pack(fill="x")
 
-        tk.Button(inner, text="Abrir escáner", bg="white", fg=C_ACCENT,
+        tk.Button(inner, text="Registro manual", bg="white", fg=C_ACCENT,
                   bd=1, relief="solid", highlightbackground="#2a4a8a",
                   padx=10, pady=4, font=("Segoe UI", 9, "bold"), cursor="hand2",
                   activebackground="#f0f6ff",
-                  command=lambda: self._navegar("escaner")).pack(side="right")
+                  command=self._abrir_registro_manual).pack(side="right")
 
         # ── Stats cards ──
         stats = tk.Frame(container, bg=C_SURFACE)
@@ -344,8 +381,7 @@ class PocketForaApp:
             tk.Label(body, text=f"{icon}  {label.upper()}", bg=C_SURFACE3,
                      fg=C_INK3, font=("Segoe UI", 8, "bold"), anchor="w").pack(fill="x")
 
-            value_color = C_DANGER if color == "danger" else C_INK
-            val = tk.Label(body, text="$ 0", bg=C_SURFACE3, fg=value_color,
+            val = tk.Label(body, text="$ 0", bg=C_SURFACE3, fg=C_INK,
                            font=("Segoe UI", 22, "bold"), anchor="w")
             val.pack(fill="x")
 
@@ -368,7 +404,7 @@ class PocketForaApp:
         tx_head = tk.Frame(tx_card, bg=C_SURFACE3, bd=0, highlightbackground=C_BORDER_TK, highlightthickness=0)
         tx_head.pack(fill="x", padx=16, pady=(12, 8))
         tk.Label(tx_head, text="◆  Últimas transacciones", bg=C_SURFACE3,
-                 fg=C_INK, font=("Segoe UI", 10, "bold"), anchor="w").pack(side="left")
+                 fg=C_INK, font=(FONT_TITLE_FAMILY, 13), anchor="w").pack(side="left")
 
         self.tx_container = tk.Frame(tx_card, bg=C_SURFACE3)
         self.tx_container.pack(fill="both", expand=True, padx=12, pady=(0, 10))
@@ -386,7 +422,7 @@ class PocketForaApp:
         chart_head = tk.Frame(chart_card, bg=C_SURFACE3, bd=0, highlightbackground=C_BORDER_TK, highlightthickness=0)
         chart_head.pack(fill="x", padx=16, pady=(12, 4))
         tk.Label(chart_head, text="◆  Evolución mensual", bg=C_SURFACE3,
-                 fg=C_INK, font=("Segoe UI", 10, "bold"), anchor="w").pack(side="left")
+                 fg=C_INK, font=(FONT_TITLE_FAMILY, 13), anchor="w").pack(side="left")
 
         # bar chart canvas
         self.bar_canvas = tk.Canvas(chart_card, bg=C_SURFACE3, height=100,
@@ -396,7 +432,7 @@ class PocketForaApp:
         # legend
         leg = tk.Frame(chart_card, bg=C_SURFACE3)
         leg.pack(fill="x", padx=16, pady=(0, 6))
-        for color, text in [(C_ACCENT, "Mes actual"), ("#93c5fd", "Mes anterior"), (C_ACCENT_LIGHT, "Previos")]:
+        for color, text in [(C_AMOUNT_RED, "> $100k"), (C_AMOUNT_YELLOW, "$50k-$100k"), (C_AMOUNT_GREEN, "$20k-$50k"), (C_AMOUNT_BLUE, "< $20k")]:
             f = tk.Frame(leg, bg=C_SURFACE3)
             f.pack(side="left", padx=(0, 12))
             tk.Frame(f, bg=color, width=8, height=8, bd=0).pack(side="left", padx=(0, 4))
@@ -411,7 +447,7 @@ class PocketForaApp:
         cat_head = tk.Frame(chart_card, bg=C_SURFACE3)
         cat_head.pack(fill="x", padx=16, pady=(6, 4))
         tk.Label(cat_head, text="◆  Gasto por categoría", bg=C_SURFACE3,
-                 fg=C_INK, font=("Segoe UI", 10, "bold"), anchor="w").pack(side="left")
+                 fg=C_INK, font=(FONT_TITLE_FAMILY, 13), anchor="w").pack(side="left")
 
         self.cat_container = tk.Frame(chart_card, bg=C_SURFACE3)
         self.cat_container.pack(fill="both", expand=True, padx=16, pady=(0, 14))
@@ -462,7 +498,7 @@ class PocketForaApp:
         # --- Confirm section (hidden until scan) ---
         self.confirm_section = tk.LabelFrame(self.escaner_outer, text="Datos de la Transacción",
                                               bg=C_SURFACE3, fg=C_INK,
-                                              font=("Segoe UI", 10, "bold"),
+                                              font=(FONT_TITLE_FAMILY, 12),
                                               bd=1, relief="solid", highlightbackground=C_BORDER_TK,
                                               padx=16, pady=12)
 
@@ -601,19 +637,20 @@ class PocketForaApp:
     def cargar_resumen(self):
         ahora = datetime.now()
         resumen = calcular_resumen_mensual(ahora.year, ahora.month)
-        total_f = self._formatear_total(resumen['gasto_total'])
-        prom_f = self._formatear_total(resumen['promedio_por_transaccion'])
+        total = resumen['gasto_total']
+        prom = resumen['promedio_por_transaccion']
+        total_f = self._formatear_total(total)
+        prom_f = self._formatear_total(prom)
 
-        # update stat widgets on dashboard
         card_gasto = self.stat_widgets.get("Gasto total", {}).get("val")
         if card_gasto:
-            card_gasto.config(text=f"$ {total_f}")
+            card_gasto.config(text=f"$ {total_f}", fg=color_por_monto(total))
         card_tx = self.stat_widgets.get("Transacciones", {}).get("val")
         if card_tx:
-            card_tx.config(text=str(resumen['total_transacciones']))
+            card_tx.config(text=str(resumen['total_transacciones']), fg=C_INK)
         card_prom = self.stat_widgets.get("Promedio diario", {}).get("val")
         if card_prom:
-            card_prom.config(text=f"$ {prom_f}")
+            card_prom.config(text=f"$ {prom_f}", fg=color_por_monto(prom))
 
         # update recent transactions
         self._actualizar_recientes()
@@ -660,8 +697,9 @@ class PocketForaApp:
             tag.pack(side="right", padx=(4, 0))
 
             # amount
-            amt = tk.Label(row, text=f"$ {self._formatear_total(t['total'])}",
-                            bg=C_SURFACE3, fg=C_DANGER,
+            monto = t['total']
+            amt = tk.Label(row, text=f"$ {self._formatear_total(monto)}",
+                            bg=C_SURFACE3, fg=color_por_monto(monto),
                             font=("Segoe UI", 11, "bold"))
             amt.pack(side="right")
 
@@ -695,11 +733,11 @@ class PocketForaApp:
             y0 = h - 20 - bh
             y1 = h - 20
 
-            color = C_ACCENT if i == len(meses)-1 else "#93c5fd" if i == len(meses)-2 else C_ACCENT_LIGHT
-            self.bar_canvas.create_rectangle(x0, y0, x1, y1, fill=color, outline="")
+            bar_color = color_por_monto(v)
+            self.bar_canvas.create_rectangle(x0, y0, x1, y1, fill=bar_color, outline="")
             lbl = f"${v:.0f}" if v == int(v) else f"${v:.1f}"
             self.bar_canvas.create_text((x0+x1)/2, y0-4, text=lbl,
-                                         fill=C_INK2, font=("Segoe UI", 7, "bold"))
+                                         fill=bar_color, font=("Segoe UI", 7, "bold"))
             self.bar_canvas.create_text((x0+x1)/2, h-6, text=m,
                                          fill=C_INK3, font=("Segoe UI", 8))
 
@@ -727,8 +765,9 @@ class PocketForaApp:
                      fg=C_INK2, font=("Segoe UI", 9)).pack(side="left")
             tk.Label(top, text=f"{pct:.1f}%", bg=C_SURFACE3,
                      fg=C_INK3, font=("Segoe UI", 8)).pack(side="left", padx=4)
-            tk.Label(top, text=f"$ {self._formatear_total(c['total_gastado'])}",
-                     bg=C_SURFACE3, fg=C_INK,
+            cat_monto = c['total_gastado']
+            tk.Label(top, text=f"$ {self._formatear_total(cat_monto)}",
+                     bg=C_SURFACE3, fg=color_por_monto(cat_monto),
                      font=("Segoe UI", 9, "bold")).pack(side="right")
 
             bar_bg = tk.Frame(row, bg=C_SURFACE2, height=5)
@@ -939,6 +978,101 @@ class PocketForaApp:
         self._volver_a_escaner()
         self._mostrar_pagina("inicio")
 
+    def _abrir_registro_manual(self):
+        ventana = tk.Toplevel(self.root)
+        ventana.title("Registro manual de factura")
+        ventana.geometry("520x520")
+        ventana.transient(self.root)
+        ventana.grab_set()
+
+        main = tk.Frame(ventana, bg=C_SURFACE3, padx=20, pady=16)
+        main.pack(fill="both", expand=True)
+
+        tk.Label(main, text="Ingresa los datos de la factura", bg=C_SURFACE3, fg=C_INK,
+                 font=(FONT_TITLE_FAMILY, 14)).pack(anchor="w", pady=(0, 12))
+
+        campos = tk.Frame(main, bg=C_SURFACE3)
+        campos.pack(fill="both", expand=True)
+
+        labels = ["Comercio:", "Fecha:", "Total:", "RUC:", "Tipo Doc.:", "Serie:", "Categoría:"]
+        entries = {}
+        for i, l in enumerate(labels):
+            tk.Label(campos, text=l, bg=C_SURFACE3, fg=C_INK,
+                     font=("Segoe UI", 10)).grid(row=i, column=0, sticky="w", pady=4, padx=(0, 10))
+            if l == "Categoría:":
+                var = tk.StringVar()
+                cats = listar_categorias()
+                combo = ttk.Combobox(campos, textvariable=var, state="readonly",
+                                     width=40, font=("Segoe UI", 10))
+                combo["values"] = [f"{c['icono']} {c['nombre']}" for c in cats]
+                if cats:
+                    combo.current(len(cats)-1)
+                combo.grid(row=i, column=1, sticky="ew", pady=4)
+                entries[l] = var
+            else:
+                var = tk.StringVar()
+                entry = tk.Entry(campos, textvariable=var, width=40,
+                                 font=("Segoe UI", 10),
+                                 bd=1, relief="solid", highlightbackground=C_BORDER_TK)
+                entry.grid(row=i, column=1, sticky="ew", pady=4)
+                if l == "Fecha:":
+                    var.set(datetime.now().strftime("%Y-%m-%d"))
+                entries[l] = var
+
+        tk.Label(campos, text="Detalle:", bg=C_SURFACE3, fg=C_INK,
+                 font=("Segoe UI", 10)).grid(row=len(labels), column=0, sticky="nw", pady=4)
+        detalle = scrolledtext.ScrolledText(campos, width=40, height=4,
+                                            font=("Segoe UI", 9),
+                                            bd=1, relief="solid")
+        detalle.grid(row=len(labels), column=1, sticky="ew", pady=4)
+
+        def _guardar_manual():
+            comercio = entries["Comercio:"].get().strip()
+            fecha = entries["Fecha:"].get().strip()
+            total_str = entries["Total:"].get().strip().replace(",", "").replace(".", "")
+            ruc = entries["RUC:"].get().strip()
+            tipo_doc = entries["Tipo Doc.:"].get().strip()
+            serie = entries["Serie:"].get().strip()
+            cat_var = entries["Categoría:"].get().strip()
+            detalle_text = detalle.get("1.0", "end-1c").strip()
+
+            if not comercio or not total_str:
+                messagebox.showwarning("Campos requeridos", "Comercio y Total son obligatorios.")
+                return
+            try:
+                total = float(total_str)
+            except ValueError:
+                messagebox.showwarning("Total inválido", "Ingresa un valor numérico para el Total.")
+                return
+
+            trans_id = insertar_transaccion(
+                comercio=comercio, fecha=fecha, total=total,
+                detalle=detalle_text, tipo_documento=tipo_doc,
+                serie_numero=serie, ruc=ruc, qr_raw="",
+                moneda="PEN",
+            )
+            if cat_var:
+                for c in listar_categorias():
+                    if f"{c['icono']} {c['nombre']}" == cat_var:
+                        actualizar_categoria_transaccion(trans_id, c["id"])
+                        break
+
+            ventana.destroy()
+            self.cargar_resumen()
+            messagebox.showinfo("Registrado", f"Factura de {comercio} por $ {self._formatear_total(total)} registrada.")
+
+        btn_frame = tk.Frame(main, bg=C_SURFACE3)
+        btn_frame.pack(fill="x", pady=(12, 0))
+        tk.Button(btn_frame, text="✅  Guardar", command=_guardar_manual,
+                  bg=C_ACCENT, fg="white", bd=0, padx=16, pady=5,
+                  font=("Segoe UI", 9, "bold"), cursor="hand2",
+                  activebackground="#6d28d9").pack(side="left", padx=(0, 8))
+        tk.Button(btn_frame, text="Cancelar", command=ventana.destroy,
+                  bg=C_SURFACE3, fg=C_INK2, bd=1, relief="solid", padx=14, pady=5,
+                  font=("Segoe UI", 9), cursor="hand2",
+                  activebackground=C_SURFACE2).pack(side="left")
+        return ventana
+
     def cargar_historial(self):
         for item in self.tree.get_children():
             self.tree.delete(item)
@@ -991,6 +1125,8 @@ class PocketForaApp:
         matplotlib.use('Agg')
         import matplotlib.pyplot as plt
         import io
+
+        _pdf_title_font = "Helvetica-Bold"
 
         mes, anio = self._mes_anio_seleccionados()
         meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -1063,7 +1199,7 @@ class PocketForaApp:
             def draw_text(cnv, text, x, y, size=10, color=GRAY_DARK, bold=False, align="left"):
                 cnv.saveState()
                 cnv.setFillColor(color)
-                cnv.setFont("Helvetica-Bold" if bold else "Helvetica", size)
+                cnv.setFont(_pdf_title_font if bold else "Helvetica", size)
                 if align == "right":
                     cnv.drawRightString(x, y, text)
                 elif align == "center":
@@ -1079,7 +1215,7 @@ class PocketForaApp:
                 cnv.line(x1, y1, x2, y2)
                 cnv.restoreState()
 
-            def kpi_card(cnv, x, y, w, h, label, value, sub, accent=BLUE):
+            def kpi_card(cnv, x, y, w, h, label, value, sub, accent=PURPLE):
                 draw_rect(cnv, x, y, w, h, fill=GRAY_LIGHT, radius=6)
                 draw_text(cnv, label.upper(), x+10, y+h-16, size=7, color=GRAY_MID)
                 draw_text(cnv, value, x+10, y+h-38, size=18, color=accent, bold=True)
@@ -1098,7 +1234,8 @@ class PocketForaApp:
 
             # ── HEADER ──
             draw_rect(C, 0, H-52, W, 52, fill=GRAY_DARK)
-            draw_text(C, "PocketFora", margin, H-22, size=18, color=WHITE, bold=True)
+            draw_text(C, "Pocket", margin, H-22, size=18, color=WHITE, bold=True)
+            draw_text(C, "FORA", margin+55, H-22, size=18, color=PURPLE, bold=True)
             draw_text(C, "Reporte mensual de gastos", margin, H-36, size=9, color=GRAY_MID)
             draw_text(C, f"{nombre_mes.upper()} {anio}", W-margin, H-22, size=9, color=PURPLE_LIGHT, bold=True, align="right")
             from datetime import date
@@ -1111,9 +1248,14 @@ class PocketForaApp:
             kw = (W - 2*margin - 12) / 3
             kh = 54
             ky = y_cursor - kh
-            kpi_card(C, margin, ky, kw, kh, "Total gastado", fmt(curr_total), "este mes", PURPLE)
+            def _pdf_amount_color(v):
+                if v > 100000: return colors.HexColor("#dc2626")
+                elif v > 50000: return colors.HexColor("#d97706")
+                elif v > 20000: return colors.HexColor("#16a34a")
+                else: return colors.HexColor("#2563eb")
+            kpi_card(C, margin, ky, kw, kh, "Total gastado", fmt(curr_total), "este mes", _pdf_amount_color(curr_total))
             kpi_card(C, margin+kw+6, ky, kw, kh, "Transacciones", str(curr_txns), "este mes", TEAL)
-            kpi_card(C, margin+2*(kw+6), ky, kw, kh, "Promedio por tx", fmt(curr_avg), "por transaccion", AMBER)
+            kpi_card(C, margin+2*(kw+6), ky, kw, kh, "Promedio por tx", fmt(curr_avg), "por transaccion", _pdf_amount_color(curr_avg))
 
             delta_badge(C, margin+8, ky-13, curr_total, prev_total, bigger_is_bad=True)
             delta_badge(C, margin+kw+6+8, ky-13, curr_txns, prev_txns, bigger_is_bad=True)
@@ -1123,7 +1265,7 @@ class PocketForaApp:
 
             # ── SECTION: COMPARATIVA ──
             draw_text(C, f"COMPARATIVA -- {nombre_mes.upper()} VS {meses[mes_prev-1].upper()} {anio_prev}",
-                      margin, y_cursor, size=7, color=GRAY_MID, bold=True)
+                      margin, y_cursor, size=9, color=GRAY_MID, bold=True)
             draw_line(C, margin, y_cursor-4, W-margin, y_cursor-4)
             y_cursor -= 14
 
@@ -1151,7 +1293,9 @@ class PocketForaApp:
                 d_color = RED_MID if (is_up and bad_if_up) else GREEN_MID
                 draw_text(C, label, col_x[0], y_cursor, size=9)
                 draw_text(C, v_prev, col_x[1], y_cursor, size=9, color=GRAY_MID, align="right")
-                draw_text(C, v_curr, col_x[2], y_cursor, size=9, color=PURPLE, bold=True, align="right")
+                _cv = float(v_curr.replace("$ ","").replace(",",""))
+                _c = _pdf_amount_color(_cv)
+                draw_text(C, v_curr, col_x[2], y_cursor, size=9, color=_c, bold=True, align="right")
                 draw_text(C, diff_val, col_x[3], y_cursor, size=9, color=d_color, align="right")
                 draw_text(C, diff_pct_str, col_x[4], y_cursor, size=9, color=d_color, bold=True, align="right")
                 y_cursor -= 3
@@ -1161,7 +1305,7 @@ class PocketForaApp:
             y_cursor -= 8
 
             # ── SECTION: GRAFICO ──
-            draw_text(C, "EVOLUCION MENSUAL", margin, y_cursor, size=7, color=GRAY_MID, bold=True)
+            draw_text(C, "EVOLUCION MENSUAL", margin, y_cursor, size=9, color=GRAY_MID, bold=True)
             draw_line(C, margin, y_cursor-4, W-margin, y_cursor-4)
             y_cursor -= 14
 
@@ -1183,15 +1327,20 @@ class PocketForaApp:
                 r_prev = calcular_resumen_mensual(a, m-1 if m > 1 else 12)
                 months_prev.append(r_prev['gasto_total'])
 
+            def _mpcolor(v):
+                if v > 100000: return "#dc2626"
+                elif v > 50000: return "#d97706"
+                elif v > 20000: return "#16a34a"
+                else: return "#2563eb"
             fig, ax = plt.subplots(figsize=(5.2, 2.0), dpi=150)
             fig.patch.set_alpha(0)
             ax.set_facecolor("none")
             x = range(6)
             w = 0.35
             ax.bar([i - w/2 for i in x], months_prev, width=w,
-                   color="#D8C4F0", label="Mes anterior", zorder=3)
+                   color=[_mpcolor(v) for v in months_prev], label="Mes anterior", zorder=3)
             ax.bar([i + w/2 for i in x], months_curr, width=w,
-                   color="#7C3AED", label="Mes actual", zorder=3)
+                   color=[_mpcolor(v) for v in months_curr], label="Mes actual", zorder=3)
             ax.set_xticks(list(x))
             ax.set_xticklabels([months_labels[(mes-5+i) % 12] for i in range(6)], fontsize=8, color="#888780")
             ax.yaxis.set_visible(False)
@@ -1214,22 +1363,20 @@ class PocketForaApp:
             y_cursor -= chart_h + 10
 
             # ── SECTION: ULTIMAS TRANSACCIONES ──
-            draw_text(C, "ULTIMAS TRANSACCIONES", margin, y_cursor, size=7, color=GRAY_MID, bold=True)
+            draw_text(C, "ULTIMAS TRANSACCIONES", margin, y_cursor, size=9, color=GRAY_MID, bold=True)
             draw_line(C, margin, y_cursor-4, W-margin, y_cursor-4)
             y_cursor -= 14
 
-            colores_tx = [PURPLE, TEAL_MID, AMBER_MID, RED_MID, GREEN_MID, colors.HexColor("#7C3AED"),
-                          colors.HexColor("#E11D48"), colors.HexColor("#0891B2"), colors.HexColor("#D97706")]
-            for idx, t in enumerate(datos["transacciones"][:15]):
-                color = colores_tx[idx % len(colores_tx)]
+            for t in datos["transacciones"][:15]:
+                tx_color = _pdf_amount_color(t['total'])
                 C.saveState()
-                C.setFillColor(color)
+                C.setFillColor(tx_color)
                 C.circle(margin+5, y_cursor+3, 4, fill=1, stroke=0)
                 C.restoreState()
                 comercio_limpio = t['comercio'].encode('latin-1', 'replace').decode('latin-1')
                 draw_text(C, comercio_limpio, margin+15, y_cursor+5, size=9, bold=True)
                 draw_text(C, t['fecha'], margin+15, y_cursor-5, size=8, color=GRAY_MID)
-                draw_text(C, fmt(t['total']), W-margin, y_cursor+3, size=11, color=color, bold=True, align="right")
+                draw_text(C, fmt(t['total']), W-margin, y_cursor+3, size=11, color=tx_color, bold=True, align="right")
                 y_cursor -= 6
                 draw_line(C, margin, y_cursor, W-margin, y_cursor, color=GRAY_LIGHT)
                 y_cursor -= 14
