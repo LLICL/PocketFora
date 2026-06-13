@@ -17,6 +17,7 @@ from kivy.uix.popup import Popup
 from kivy.uix.screenmanager import Screen, ScreenManager
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.spinner import Spinner
+from kivy.uix.textinput import TextInput
 from kivy.uix.image import Image as KivyImage
 
 import cv2
@@ -24,7 +25,8 @@ import numpy as np
 
 from database.db_manager import (inicializar, insertar_transaccion, insertar_producto,
                                   listar_transacciones, listar_categorias,
-                                  actualizar_categoria_transaccion, eliminar_transaccion,
+                                  actualizar_categoria_transaccion, actualizar_transaccion,
+                                  eliminar_transaccion,
                                   calcular_gastos_mensuales, calcular_resumen_mensual,
                                   obtener_transaccion, obtener_productos)
 from parser.invoice_parser import InvoiceParser
@@ -149,6 +151,138 @@ class ConfirmarScreen(Screen):
         app.root.current = "principal"
 
 
+class EditarTransaccionPopup(Popup):
+    transaccion = ObjectProperty(None)
+
+    def __init__(self, trans, **kwargs):
+        super().__init__(**kwargs)
+        self.transaccion = trans
+        self.title = f"Editar - {trans['comercio']}"
+        self.size_hint = (0.9, 0.85)
+        self.content = self._build_content()
+
+    def _build_content(self):
+        layout = BoxLayout(orientation="vertical", spacing=dp(10), padding=dp(15))
+
+        nota = Label(
+            text="[b]ℹ️  DIAN:[/b] Si el producto no pudo ser registrado, ingrese el valor y el nombre manualmente",
+            size_hint_y=None, height=dp(50), markup=True,
+            halign="left", valign="middle", text_size=(None, None),
+            color=(0.5, 0.3, 0, 1)
+        )
+        layout.add_widget(nota)
+
+        form = BoxLayout(orientation="vertical", spacing=dp(6))
+        form.bind(minimum_height=form.setter("height"))
+
+        campos = [
+            ("Comercio:", "comercio"),
+            ("Fecha:", "fecha"),
+            ("Total:", "total"),
+            ("RUC:", "ruc"),
+            ("Tipo Doc.:", "tipo_documento"),
+            ("Serie:", "serie_numero"),
+        ]
+        self.campo_widgets = {}
+        for label, key in campos:
+            row = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(8))
+            tk.Label(text=label, size_hint_x=0.3, halign="right",
+                     valign="middle", font_size=dp(13)).bind(size=lambda s, v: setattr(s, "text_size", (s.width, None)))
+            row.add_widget(Label(text=label, size_hint_x=0.3, halign="right", valign="middle", font_size=dp(13)))
+            if key == "total":
+                total_row = BoxLayout(orientation="horizontal", size_hint_x=0.7, spacing=dp(4))
+                text_input = TextInput(
+                    text=str(trans.get(key, "")),
+                    size_hint_x=0.7, font_size=dp(13),
+                    multiline=False, input_filter="float"
+                )
+                hint = Label(text="sin puntos ni comas", size_hint_x=0.3,
+                             font_size=dp(10), color=(0.5, 0.5, 0.5, 1),
+                             halign="left", valign="middle")
+                total_row.add_widget(text_input)
+                total_row.add_widget(hint)
+                row.add_widget(total_row)
+                self.campo_widgets[key] = text_input
+            else:
+                text_input = TextInput(
+                    text=str(trans.get(key, "")),
+                    size_hint_x=0.7, font_size=dp(13),
+                    multiline=False
+                )
+                row.add_widget(text_input)
+                self.campo_widgets[key] = text_input
+            form.add_widget(row)
+
+        # Categoria spinner
+        cat_row = BoxLayout(size_hint_y=None, height=dp(35), spacing=dp(8))
+        cat_row.add_widget(Label(text="Categoría:", size_hint_x=0.3, halign="right", valign="middle", font_size=dp(13)))
+        self.cat_spinner = Spinner(
+            text="📁 Otros", size_hint_x=0.7, font_size=dp(13)
+        )
+        categorias = listar_categorias()
+        self.cat_spinner.values = [f"{c['icono']} {c['nombre']}" for c in categorias]
+        cat_actual = next((f"{c['icono']} {c['nombre']}" for c in categorias
+                           if c["id"] == trans.get("categoria_id")), None)
+        if cat_actual:
+            self.cat_spinner.text = cat_actual
+        cat_row.add_widget(self.cat_spinner)
+        form.add_widget(cat_row)
+
+        # Detalle
+        det_row = BoxLayout(size_hint_y=None, height=dp(80), spacing=dp(8))
+        det_row.add_widget(Label(text="Detalle:", size_hint_x=0.3, halign="right",
+                                 valign="top", font_size=dp(13)))
+        self.detalle_input = TextInput(
+            text=trans.get("detalle", "") or "",
+            size_hint_x=0.7, font_size=dp(13),
+            multiline=True
+        )
+        det_row.add_widget(self.detalle_input)
+        form.add_widget(det_row)
+
+        layout.add_widget(form)
+
+        # Botones
+        btn_row = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10))
+        btn_guardar = Button(text="✅  Guardar cambios", font_size=dp(14),
+                             background_color=(0.3, 0.7, 0.4, 1))
+        btn_guardar.bind(on_release=self.guardar)
+        btn_cancelar = Button(text="Cancelar", font_size=dp(14),
+                              background_color=(0.5, 0.5, 0.5, 1))
+        btn_cancelar.bind(on_release=lambda x: self.dismiss())
+        btn_row.add_widget(btn_guardar)
+        btn_row.add_widget(btn_cancelar)
+        layout.add_widget(btn_row)
+
+        return layout
+
+    def guardar(self, *args):
+        try:
+            total_val = float(self.campo_widgets["total"].text) if self.campo_widgets["total"].text else 0.0
+        except ValueError:
+            total_val = 0.0
+        actualizar_transaccion(
+            self.transaccion["id"],
+            comercio=self.campo_widgets["comercio"].text,
+            fecha=self.campo_widgets["fecha"].text,
+            total=total_val,
+            ruc=self.campo_widgets["ruc"].text,
+            tipo_documento=self.campo_widgets["tipo_documento"].text,
+            serie_numero=self.campo_widgets["serie_numero"].text,
+            detalle=self.detalle_input.text,
+        )
+        cat_texto = self.cat_spinner.text
+        if cat_texto:
+            for c in listar_categorias():
+                if f"{c['icono']} {c['nombre']}" == cat_texto:
+                    actualizar_categoria_transaccion(self.transaccion["id"], c["id"])
+                    break
+        self.dismiss()
+        app = App.get_running_app()
+        if app.root.has_screen("historial"):
+            app.root.get_screen("historial").cargar_historial()
+
+
 class HistorialScreen(Screen):
     def on_enter(self):
         self.cargar_historial()
@@ -169,17 +303,30 @@ class HistorialScreen(Screen):
             icono = t.get("categoria_icono", "📁") or "📁"
             info = Label(
                 text=f"[{t['fecha']}] {icono} {t['comercio']}",
-                size_hint_x=0.6, halign="left", valign="middle",
+                size_hint_x=0.5, halign="left", valign="middle",
                 text_size=(None, None), markup=True
             )
             monto = Label(
                 text=f"S/ {t['total']:.2f}",
-                size_hint_x=0.3, halign="right", valign="middle"
+                size_hint_x=0.25, halign="right", valign="middle"
             )
+            btn_editar = Button(
+                text="✏️", size_hint_x=0.1, font_size=dp(12),
+                background_color=(0.3, 0.6, 0.9, 1)
+            )
+            btn_editar.trans_id = t["id"]
+            btn_editar.bind(on_release=lambda btn: self._editar(btn.trans_id))
             card.add_widget(info)
             card.add_widget(monto)
+            card.add_widget(btn_editar)
             layout.add_widget(card)
         scroll.add_widget(layout)
+
+    def _editar(self, trans_id):
+        trans = obtener_transaccion(trans_id)
+        if trans:
+            popup = EditarTransaccionPopup(trans)
+            popup.open()
 
 
 class ReporteScreen(Screen):

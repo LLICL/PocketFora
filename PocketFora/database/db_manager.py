@@ -95,6 +95,43 @@ def actualizar_categoria_transaccion(trans_id, categoria_id):
     conn.close()
 
 
+def actualizar_transaccion(trans_id, comercio=None, fecha=None, total=None,
+                            detalle=None, tipo_documento=None, serie_numero=None,
+                            ruc=None, moneda=None):
+    conn = conectar()
+    campos = []
+    valores = []
+    if comercio is not None:
+        campos.append("comercio = ?")
+        valores.append(comercio)
+    if fecha is not None:
+        campos.append("fecha = ?")
+        valores.append(fecha)
+    if total is not None:
+        campos.append("total = ?")
+        valores.append(total)
+    if detalle is not None:
+        campos.append("detalle = ?")
+        valores.append(detalle)
+    if tipo_documento is not None:
+        campos.append("tipo_documento = ?")
+        valores.append(tipo_documento)
+    if serie_numero is not None:
+        campos.append("serie_numero = ?")
+        valores.append(serie_numero)
+    if ruc is not None:
+        campos.append("ruc = ?")
+        valores.append(ruc)
+    if moneda is not None:
+        campos.append("moneda = ?")
+        valores.append(moneda)
+    if campos:
+        valores.append(trans_id)
+        conn.execute(f"UPDATE transacciones SET {', '.join(campos)} WHERE id = ?", valores)
+        conn.commit()
+    conn.close()
+
+
 def eliminar_transaccion(trans_id):
     conn = conectar()
     conn.execute("DELETE FROM transacciones WHERE id = ?", (trans_id,))
