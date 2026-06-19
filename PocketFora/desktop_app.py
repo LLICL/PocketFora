@@ -17,8 +17,10 @@ from database.db_manager import (inicializar, insertar_transaccion, insertar_pro
                                   eliminar_transaccion,
                                   calcular_gastos_mensuales, calcular_resumen_mensual,
                                   obtener_transaccion, conectar)
-from parser.invoice_parser import InvoiceParser
+from parser.invoice_parser import InvoiceParser, InvoiceData
 from scanner.qr_scanner import QRScanner
+from scanner.dian_parser import DianParser
+from scanner.dian_consultor import DianConsultor
 from analysis.reporter import Reporter
 
 # ── Colores del diseño ──
@@ -548,6 +550,48 @@ class PocketForaApp:
                   font=("Segoe UI", 9), cursor="hand2",
                   activebackground=C_SURFACE2).pack(side="left", padx=5)
 
+        # ── DIAN consultation waiting section (hidden initially) ──
+        self.dian_waiting_frame = tk.Frame(self.escaner_outer, bg=C_SURFACE3,
+                                            bd=1, relief="solid", highlightbackground=C_ACCENT)
+        self.dian_label = tk.Label(self.dian_waiting_frame,
+                                    text="⏳ Consultando DIAN...",
+                                    bg=C_SURFACE3, fg=C_INK,
+                                    font=("Segoe UI", 12), pady=30)
+        self.dian_label.pack(fill="x")
+        self.dian_sub = tk.Label(self.dian_waiting_frame,
+                                  text="Resuelve el CAPTCHA en el navegador abierto\ny espera a que se carguen los datos.",
+                                  bg=C_SURFACE3, fg=C_INK3,
+                                  font=("Segoe UI", 10))
+        self.dian_sub.pack(fill="x", pady=(0, 10))
+
+        self.dian_url_label = tk.Label(self.dian_waiting_frame,
+                                        text="", bg=C_SURFACE3, fg=C_ACCENT,
+                                        font=("Segoe UI", 9), wraplength=480, cursor="hand2")
+        self.dian_url_label.bind("<Button-1>", lambda e: self._abrir_url_dian())
+
+        self.dian_text_frame = tk.Frame(self.dian_waiting_frame, bg=C_SURFACE3)
+        self.dian_text_area = tk.Text(self.dian_text_frame, height=10, width=50,
+                                       font=("Consolas", 9), relief="solid", bd=1,
+                                       bg="white", fg=C_INK, insertbackground=C_INK)
+        scroll = tk.Scrollbar(self.dian_text_frame, command=self.dian_text_area.yview)
+        self.dian_text_area.config(yscrollcommand=scroll.set)
+        self.dian_text_area.pack(side="left", fill="both", expand=True)
+        scroll.pack(side="right", fill="y")
+        self.dian_text_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+
+        self.btn_extraer_dian = tk.Button(self.dian_waiting_frame, text="⏳  Procesando...",
+                                           command=self._extraer_datos_dian,
+                                           bg=C_ACCENT, fg="white", bd=0, padx=16, pady=6,
+                                           font=("Segoe UI", 10, "bold"), cursor="hand2",
+                                           activebackground=C_INK3, state="disabled")
+        self.btn_extraer_dian.pack(pady=(0, 6))
+        btn_cancelar_dian = tk.Button(self.dian_waiting_frame, text="✖  Cancelar",
+                                       command=self._cancelar_consulta_dian,
+                                       bg=C_DANGER, fg="white", bd=0, padx=16, pady=5,
+                                       font=("Segoe UI", 9, "bold"), cursor="hand2",
+                                       activebackground="#b91c1c")
+        btn_cancelar_dian.pack(pady=(0, 16))
+
     # ──────────────────────────────────────────────
     #  PÁGINA HISTORIAL
     # ──────────────────────────────────────────────
@@ -914,6 +958,11 @@ class PocketForaApp:
         self.lbl_estado.config(text="Carga una imagen primero", fg=C_INK3)
 
     def _procesar_texto(self, texto):
+        dian_parser = DianParser()
+        info_dian = dian_parser.parsear_qr(texto)
+        if info_dian["es_dian"]:
+            self._procesar_dian(texto, info_dian["url"], info_dian["cufe"])
+            return
         datos = self.parser.parsear(texto)
         self.ultimo_parseo = datos
         trans_id = insertar_transaccion(
@@ -935,6 +984,125 @@ class PocketForaApp:
         if s.endswith(".00"):
             s = s[:-3]
         return s
+
+    def _abrir_url_dian(self):
+        url = self.dian_url_label.cget("text")
+        if url:
+            __import__("webbrowser").open(url)
+
+    def _procesar_dian(self, texto_qr, url_dian, cufe):
+        self.dian_qr_texto = texto_qr
+        self.dian_url_label.pack_forget()
+        self.dian_text_frame.pack_forget()
+        self.scanner_section.pack_forget()
+        self.dian_waiting_frame.pack(fill="both", expand=True, padx=22, pady=30)
+        self.dian_label.config(text="⏳  Consultando DIAN...")
+        self.dian_sub.config(text="Preparando consulta...")
+        self.lbl_estado.config(text="Consultando DIAN...", fg=C_ACCENT)
+
+        self.btn_extraer_dian.config(state="disabled", text="⏳  Procesando...")
+        self.dian_queue = __import__("queue").Queue()
+        self.dian_consultor = DianConsultor()
+        self.dian_consultor.consultar(url_dian, cufe, self.dian_queue)
+        self._revisar_queue_dian()
+
+    def _extraer_datos_dian(self):
+        texto = self.dian_text_area.get("1.0", "end-1c")
+        if len(texto.strip()) < 50:
+            __import__("tkinter").messagebox.showwarning(
+                "Texto muy corto",
+                "Copia toda la página de la factura (Ctrl+A, Ctrl+C) y pégala aquí."
+            )
+            return
+        self.btn_extraer_dian.config(state="disabled", text="⏳  Extrayendo datos...")
+        self.dian_sub.config(text="Procesando texto pegado...")
+        self.dian_consultor.extraer_ahora(texto)
+
+    def _cancelar_consulta_dian(self):
+        if self.dian_consultor:
+            self.dian_consultor.detener()
+        self.dian_url_label.pack_forget()
+        self.dian_text_frame.pack_forget()
+        self.btn_extraer_dian.config(state="disabled", text="⏳  Procesando...")
+        self.dian_waiting_frame.pack_forget()
+        self.scanner_section.pack(fill="both", expand=True)
+        self.lbl_estado.config(text="Consulta cancelada", fg=C_INK3)
+
+    def _revisar_queue_dian(self):
+        try:
+            mensaje = self.dian_queue.get_nowait()
+        except __import__("queue").Empty:
+            self.root.after(300, self._revisar_queue_dian)
+            return
+
+        tipo = mensaje[0]
+        datos = mensaje[1]
+
+        if tipo == "URL":
+            self.dian_label.config(text="Abre este enlace en tu navegador:")
+            self.dian_sub.config(text="Pasos:\n1. Ctrl+A (seleccionar todo)\n2. Ctrl+C (copiar)\n3. Ctrl+V (pegar aquí abajo)\n4. Presiona 'Procesar texto pegado'")
+            self.dian_url_label.config(text=str(datos))
+            self.dian_url_label.pack(pady=(0, 6))
+            self.dian_text_area.delete("1.0", "end")
+            self.dian_text_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+            self.btn_extraer_dian.config(state="normal", text="📋  Procesar texto pegado", bg="#16a34a")
+            self.root.after(300, self._revisar_queue_dian)
+
+        elif tipo == "RESULTADO":
+            self.btn_extraer_dian.config(state="disabled", text="⏳  Procesando...")
+            self.dian_waiting_frame.pack_forget()
+            d = datos
+            detalle = d.get("detalle", "")
+            if d.get("estado"):
+                detalle += f"\nEstado DIAN: {d['estado']}"
+            if d.get("nit_emisor"):
+                detalle += f"\nNIT: {d['nit_emisor']}"
+            if d.get("cufe"):
+                detalle += f"\nCUFE: {d['cufe']}"
+
+            invoice = InvoiceData()
+            invoice.comercio = d.get("comercio", "DIAN") or "DIAN"
+            invoice.fecha = d.get("fecha", "") or __import__("datetime").datetime.now().strftime("%Y-%m-%d")
+            invoice.total = d.get("total", 0.0) or 0.0
+            invoice.moneda = d.get("moneda", "COP") or "COP"
+            invoice.detalle = detalle
+            invoice.tipo_documento = d.get("tipo_documento", "Factura Electrónica") or "Factura Electrónica"
+            invoice.serie_numero = d.get("serie_numero", d.get("cufe", "")[:20]) or ""
+            invoice.ruc = d.get("ruc", d.get("nit_emisor", "")) or ""
+            invoice.productos = d.get("productos", [])
+
+            self.ultimo_parseo = invoice
+            trans_id = insertar_transaccion(
+                comercio=invoice.comercio, fecha=invoice.fecha, total=invoice.total,
+                detalle=invoice.detalle, tipo_documento=invoice.tipo_documento,
+                serie_numero=invoice.serie_numero, ruc=invoice.ruc, qr_raw=getattr(self, 'dian_qr_texto', ""),
+                moneda=invoice.moneda,
+            )
+            for p in invoice.productos:
+                insertar_producto(trans_id, p["descripcion"], p["cantidad"], p["precio_unitario"], p.get("subtotal", 0))
+            self.ultimo_trans_id = trans_id
+
+            self._mostrar_confirmacion(invoice)
+            self.confirm_section.pack(fill="both", expand=True)
+            self.lbl_estado.config(text="✅  Datos DIAN cargados", fg="green")
+
+        elif tipo == "ERROR":
+            self.dian_waiting_frame.pack_forget()
+            self.scanner_section.pack(fill="both", expand=True)
+            self.lbl_estado.config(text=f"❌  {datos}", fg="red")
+            __import__("tkinter").messagebox.showwarning("Error DIAN", str(datos))
+
+        elif tipo == "DEBUG_HTML":
+            import tempfile
+            ruta = os.path.join(tempfile.gettempdir(), "pocketfora_dian_debug.html")
+            with open(ruta, "w", encoding="utf-8") as f:
+                f.write(str(datos))
+            __import__("tkinter").messagebox.showinfo(
+                "Debug",
+                f"HTML de la página guardado en:\n{ruta}\n\n"
+                "Puedes abrirlo en un navegador para inspeccionar la estructura."
+            )
+            self._cancelar_consulta_dian()
 
     def _mostrar_confirmacion(self, datos):
         self.entries["Comercio:"].set(datos.comercio)
